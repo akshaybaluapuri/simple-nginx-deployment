@@ -1,0 +1,110 @@
+Task 1
+Create a pod name homework1 with 3 containers running off of nginx + mysql + redis images.
+Solution:  
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-pass
+type: Opaque
+data:
+  password: YWRtaW4=
+
+---
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: homework1
+spec:
+  containers:
+  - name: redis
+    image: redis
+  - name: nginx
+    image: nginx
+  - name: mysql
+    image: mysql:latest
+    env:
+    - name: MYSQL_ROOT_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: mysql-pass
+          key: password
+    ports:
+    - name: mysql
+      containerPort: 3306
+      protocol: TCP
+
+```
+
+Task 2
+Create a Jenkins pod using jenkins image in a namespace called homework2.
+Solution:  
+```
+kubectl create namespace homework2 && kubectl run jenkins --image=jenkins/jenkins:lts -n=homework2 && kubectl expose pod jenkins --name=http-port -n homework2 --port=8080 --target-port=8080 && kubectl expose pod jenkins --name=jenkins-port -n homework2 --port=50000 --target-port=50000
+```
+
+Task 3
+Create a job that runs every 2 minutes.
+Solution:  
+```
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "*/2 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure
+
+```
+
+Task 4
+Create a ConfigMap named proxy-cf containing the key/value pair : proxy/enabled. Start a Pod named nginx-config containing a single container using
+the nginx image, and mount the ConfigMap as a environmental variable.
+Solution:
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: proxy-cf
+data:
+  proxy: "enabled"
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-config
+spec:
+  containers:
+    - name: demo
+      image: nginx
+      command: ["sleep", "3600"]
+      env:
+        - name: PROXY_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: proxy-cf
+              key: proxy
+      volumeMounts:
+      - name: config
+        mountPath: "/config"
+        readOnly: true
+  volumes:
+    - name: config
+      configMap:
+        name: proxy-cf
+
+```
+

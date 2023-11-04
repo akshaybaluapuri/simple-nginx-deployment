@@ -1,0 +1,130 @@
+5 - Create a Pod using redis image with 128MB memory and 100M CPU limit  
+```
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: redis-pod
+  namespace: sample
+spec:
+  containers:
+  - name: redis-container
+    image: redis:latest
+    ports:
+    - containerPort: 8095
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+```
+
+6 - Create a deployment for joomla - ( you can look at the docker compose example) - You need to expose it to see the page. Use load balancer
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mydbsecret
+  namespace: sample
+type: Opaque
+data:
+  rootpass: YWRtaW4=
+
+---
+
+apiVersion: v1
+kind: Service
+metadata: 
+  name: joomla-service
+  namespace: sample
+spec:
+  ports:
+    - port: 80
+  selector:
+    name: joomla-pod
+  type: LoadBalancer
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: joomla-deployment
+  namespace: sample
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: joomla-pod
+  template:
+    metadata: 
+      labels:  
+        name: joomla-pod
+    spec:
+      containers:
+      - name: joomla-container
+        image: joomla:3.4.8-apache
+        env:
+        - name: JOOMLA_DB_HOST
+          value: joomla-db
+        - name: JOOMLA_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mydbsecret
+              key: rootpass
+        ports: 
+        - containerPort: 80
+          name: joomla
+        volumeMounts:
+        - name: joomla-storage
+          mountPath: /var/www/html
+      volumes:
+      - name: joomla-storage
+        persistentVolumeClaim:
+          claimName: pvc-joomla
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: joomla-storage
+  namespace: sample
+spec:
+  capacity:
+    storage: 300Mi
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  hostPath: 
+    path: "/mnt/joomla-storage"
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-joomla
+  namespace: sample
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+        
+```
+
+
+7 - Create a ns called sample then create a context to show name space of sample. Normally it show the default namespace.  
+```
+kubectl create namespace sample
+
+```
+```
+kubectl config set-context sample-context --namespace=sample --cluster=minikube --user=minikube
+
+kubectl config use-context sample-context
+```
+
+
+
